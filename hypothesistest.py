@@ -99,7 +99,7 @@ def main():
     
     if sample_mean is not None and sample_size is not None:
         # Calculate test statistic
-        if sigma_known and pop_std:
+        if sigma_known and pop_std and sample_size >= 30:
             # Z-test (σ known)
             std_error = pop_std / np.sqrt(sample_size)
             test_stat = (sample_mean - pop_mean) / std_error
