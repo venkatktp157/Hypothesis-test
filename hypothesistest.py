@@ -138,43 +138,15 @@ def main():
         reject = (test_stat < critical_lower) if test_type == "Left-tailed (μ < μ₀)" else (
                 (test_stat > critical_upper) if test_type == "Right-tailed (μ > μ₀)" else
                 (test_stat < critical_lower) or (test_stat > critical_upper))
-
-    # if sample_mean is not None and sample_size is not None:
-    #     # Calculate test statistic
-    #     if sigma_known and pop_std and sample_size >= 30:
-    #         # Z-test (σ known)
-    #         std_error = pop_std / np.sqrt(sample_size)
-    #         test_stat = (sample_mean - pop_mean) / std_error
-    #         dist_name = "Standard Normal (Z)"
-    #         critical_lower = stats.norm.ppf(alpha/2) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.norm.ppf(alpha)
-    #         critical_upper = stats.norm.ppf(1 - alpha/2) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.norm.ppf(1 - alpha)
-    #         p_value = (2 * (1 - stats.norm.cdf(abs(test_stat)))) if test_type == "Two-tailed (μ ≠ μ₀)" else (
-    #             stats.norm.cdf(test_stat) if test_type == "Left-tailed (μ < μ₀)" else 1 - stats.norm.cdf(test_stat))
-    #     else:
-    #         # t-test (σ unknown)
-    #         if single_sample_selected:
-    #             st.error("Cannot perform t-test with single sample - population σ must be known")
-    #             return
-    #         std_error = sample_std / np.sqrt(sample_size)
-    #         test_stat = (sample_mean - pop_mean) / std_error
-    #         df = sample_size - 1
-    #         dist_name = f"t-distribution (df={df})"
-    #         critical_lower = stats.t.ppf(alpha/2, df) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.t.ppf(alpha, df)
-    #         critical_upper = stats.t.ppf(1 - alpha/2, df) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.t.ppf(1 - alpha, df)
-    #         p_value = (2 * (1 - stats.t.cdf(abs(test_stat), df))) if test_type == "Two-tailed (μ ≠ μ₀)" else (
-    #             stats.t.cdf(test_stat, df) if test_type == "Left-tailed (μ < μ₀)" else 1 - stats.t.cdf(test_stat, df))
-        
-    #     reject = (test_stat < critical_lower) if test_type == "Left-tailed (μ < μ₀)" else (
-    #              (test_stat > critical_upper) if test_type == "Right-tailed (μ > μ₀)" else
-    #              (test_stat < critical_lower) or (test_stat > critical_upper))
-        
+    
         # Display results
         st.header("Test Results")
         col1, col2 = st.columns(2)
         with col1:
             st.metric("Test statistic", f"{test_stat:.4f}")
             st.metric("Standard Error", f"{std_error:.4f}")
-            st.metric("Test type", "Z-test" if sigma_known else "t-test")
+            test_label = "Z-test" if sigma_known and sample_size >= 30 else f"t-test (df={df})"
+            st.metric("Test type", test_label)
         with col2:
             st.metric("p-value", f"{p_value:.4f}")
             st.metric("α level", f"{alpha:.3f}")
@@ -185,7 +157,7 @@ def main():
         x_min = min(-4, test_stat - 1, critical_lower - 1 if 'critical_lower' in locals() else -4)
         x_max = max(4, test_stat + 1, critical_upper + 1 if 'critical_upper' in locals() else 4)
         x = np.linspace(x_min, x_max, 500)
-        y = stats.norm.pdf(x) if sigma_known else stats.t.pdf(x, df)
+        y = stats.norm.pdf(x) if sigma_known and sample_size >= 30 else stats.t.pdf(x, df)
         
         fig, ax = plt.subplots(figsize=(10, 5))
         ax.plot(x, y, label=dist_name)
@@ -207,7 +179,9 @@ def main():
             crit_val = critical_lower if test_type == "Left-tailed (μ < μ₀)" else critical_upper
             ax.axvline(crit_val, color='black', linestyle=':', label=f'Critical value = {crit_val:.2f}')
         
-        ax.set_title(f"{'Z' if sigma_known else 't'}-distribution with {test_type.split(' ')[0]} test")
+        dist_type = "Z" if sigma_known and sample_size >= 30 else "t"
+        ax.set_title(f"{dist_type}-distribution with {test_type.split(' ')[0]} test")
+
         ax.legend()
         st.pyplot(fig)
         
