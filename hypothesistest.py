@@ -95,12 +95,11 @@ def main():
     test_type = st.sidebar.radio("Test type", 
                                ["Two-tailed (μ ≠ μ₀)", 
                                 "Left-tailed (μ < μ₀)", 
-                                "Right-tailed (μ > μ₀)"])
+                                "Right-tailed (μ > μ₀)"])    
     
     if sample_mean is not None and sample_size is not None:
-        # Calculate test statistic
+        # Case 1: Z-test — σ known and sample size ≥ 30
         if sigma_known and pop_std and sample_size >= 30:
-            # Z-test (σ known)
             std_error = pop_std / np.sqrt(sample_size)
             test_stat = (sample_mean - pop_mean) / std_error
             dist_name = "Standard Normal (Z)"
@@ -108,11 +107,20 @@ def main():
             critical_upper = stats.norm.ppf(1 - alpha/2) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.norm.ppf(1 - alpha)
             p_value = (2 * (1 - stats.norm.cdf(abs(test_stat)))) if test_type == "Two-tailed (μ ≠ μ₀)" else (
                 stats.norm.cdf(test_stat) if test_type == "Left-tailed (μ < μ₀)" else 1 - stats.norm.cdf(test_stat))
-        else:
-            # t-test (σ unknown)
-            if single_sample_selected:
-                st.error("Cannot perform t-test with single sample - population σ must be known")
-                return
+
+        # Case 2: t-test — σ known and sample size < 30
+        elif sigma_known and pop_std and sample_size < 30:
+            std_error = pop_std / np.sqrt(sample_size)
+            test_stat = (sample_mean - pop_mean) / std_error
+            df = sample_size - 1
+            dist_name = f"t-distribution (df={df})"
+            critical_lower = stats.t.ppf(alpha/2, df) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.t.ppf(alpha, df)
+            critical_upper = stats.t.ppf(1 - alpha/2, df) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.t.ppf(1 - alpha, df)
+            p_value = (2 * (1 - stats.t.cdf(abs(test_stat), df))) if test_type == "Two-tailed (μ ≠ μ₀)" else (
+                stats.t.cdf(test_stat, df) if test_type == "Left-tailed (μ < μ₀)" else 1 - stats.t.cdf(test_stat, df))
+
+        # Case 3: t-test — σ unknown and sample size ≥ 2
+        elif not sigma_known and sample_std and sample_size >= 2:
             std_error = sample_std / np.sqrt(sample_size)
             test_stat = (sample_mean - pop_mean) / std_error
             df = sample_size - 1
@@ -121,10 +129,44 @@ def main():
             critical_upper = stats.t.ppf(1 - alpha/2, df) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.t.ppf(1 - alpha, df)
             p_value = (2 * (1 - stats.t.cdf(abs(test_stat), df))) if test_type == "Two-tailed (μ ≠ μ₀)" else (
                 stats.t.cdf(test_stat, df) if test_type == "Left-tailed (μ < μ₀)" else 1 - stats.t.cdf(test_stat, df))
-        
+
+        else:
+            st.error("Insufficient data or unsupported configuration for hypothesis test.")
+            return
+
+        # Decision rule
         reject = (test_stat < critical_lower) if test_type == "Left-tailed (μ < μ₀)" else (
-                 (test_stat > critical_upper) if test_type == "Right-tailed (μ > μ₀)" else
-                 (test_stat < critical_lower) or (test_stat > critical_upper))
+                (test_stat > critical_upper) if test_type == "Right-tailed (μ > μ₀)" else
+                (test_stat < critical_lower) or (test_stat > critical_upper))
+
+    # if sample_mean is not None and sample_size is not None:
+    #     # Calculate test statistic
+    #     if sigma_known and pop_std and sample_size >= 30:
+    #         # Z-test (σ known)
+    #         std_error = pop_std / np.sqrt(sample_size)
+    #         test_stat = (sample_mean - pop_mean) / std_error
+    #         dist_name = "Standard Normal (Z)"
+    #         critical_lower = stats.norm.ppf(alpha/2) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.norm.ppf(alpha)
+    #         critical_upper = stats.norm.ppf(1 - alpha/2) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.norm.ppf(1 - alpha)
+    #         p_value = (2 * (1 - stats.norm.cdf(abs(test_stat)))) if test_type == "Two-tailed (μ ≠ μ₀)" else (
+    #             stats.norm.cdf(test_stat) if test_type == "Left-tailed (μ < μ₀)" else 1 - stats.norm.cdf(test_stat))
+    #     else:
+    #         # t-test (σ unknown)
+    #         if single_sample_selected:
+    #             st.error("Cannot perform t-test with single sample - population σ must be known")
+    #             return
+    #         std_error = sample_std / np.sqrt(sample_size)
+    #         test_stat = (sample_mean - pop_mean) / std_error
+    #         df = sample_size - 1
+    #         dist_name = f"t-distribution (df={df})"
+    #         critical_lower = stats.t.ppf(alpha/2, df) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.t.ppf(alpha, df)
+    #         critical_upper = stats.t.ppf(1 - alpha/2, df) if test_type == "Two-tailed (μ ≠ μ₀)" else stats.t.ppf(1 - alpha, df)
+    #         p_value = (2 * (1 - stats.t.cdf(abs(test_stat), df))) if test_type == "Two-tailed (μ ≠ μ₀)" else (
+    #             stats.t.cdf(test_stat, df) if test_type == "Left-tailed (μ < μ₀)" else 1 - stats.t.cdf(test_stat, df))
+        
+    #     reject = (test_stat < critical_lower) if test_type == "Left-tailed (μ < μ₀)" else (
+    #              (test_stat > critical_upper) if test_type == "Right-tailed (μ > μ₀)" else
+    #              (test_stat < critical_lower) or (test_stat > critical_upper))
         
         # Display results
         st.header("Test Results")
