@@ -13,90 +13,55 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 def main():
+    st.set_page_config(page_title="Mean Test Analyzer", layout="wide")
     st.title("One-Sample Mean Test Analyzer")
-    st.write("Compare a sample mean to a population mean using Z-test (σ known) or t-test (σ unknown)")
-    
-    # User inputs
+    st.write("Perform Z-tests or t-tests based on known/unknown population parameters.")
+
+    # --- 1. SIDEBAR: DATA INPUT ---
     st.sidebar.header("1. Data Source")
     data_source = st.sidebar.radio("Select input method:", 
                                  ["Upload Sample Data", "Enter Statistics Manually"])
     
     sample_mean = sample_std = sample_size = None
-    single_sample_selected = False
     
     if data_source == "Upload Sample Data":
-        uploaded_file = st.sidebar.file_uploader("Upload data (CSV/Excel)", type=['csv', 'xlsx'])
+        uploaded_file = st.sidebar.file_uploader("Upload CSV/Excel", type=['csv', 'xlsx'])
         if uploaded_file:
             try:
-                if uploaded_file.name.endswith('.csv'):
-                    df = pd.read_csv(uploaded_file)
-                else:
-                    df = pd.read_excel(uploaded_file)
-                
-                numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+                df_input = pd.read_csv(uploaded_file) if uploaded_file.name.endswith('.csv') else pd.read_excel(uploaded_file)
+                numeric_cols = df_input.select_dtypes(include=[np.number]).columns.tolist()
                 if numeric_cols:
-                    selected_col = st.sidebar.selectbox("Select column to analyze", numeric_cols)
-                    sample_data = df[selected_col].dropna()
-                    sample_mean = np.mean(sample_data)
+                    selected_col = st.sidebar.selectbox("Select column", numeric_cols)
+                    sample_data = df_input[selected_col].dropna()
                     sample_size = len(sample_data)
+                    sample_mean = np.mean(sample_data)
+                    sample_std = np.std(sample_data, ddof=1) if sample_size > 1 else 0.0
                     
-                    # Check if only one sample is selected
-                    if len(sample_data) == 1:
-                        single_sample_selected = True
-                        st.warning("Only one sample selected - population standard deviation (σ) must be known")
-                    else:
-                        sample_std = np.std(sample_data, ddof=1)  # Sample std dev (ddof=1)
-                    
-                    st.subheader("Sample Data Summary")
-                    st.write(f"Column: {selected_col}")
-                    st.write(f"Sample size (n): {sample_size}")
-                    st.write(f"Sample mean (x̄): {sample_mean:.4f}")
-                    if not single_sample_selected:
-                        st.write(f"Sample std dev (s): {sample_std:.4f}")
-                    
-                    # Plot sample distribution if more than one sample
-                    if len(sample_data) > 1:
-                        fig, ax = plt.subplots()
-                        ax.hist(sample_data, bins='auto', edgecolor='black')
-                        ax.axvline(sample_mean, color='red', linestyle='--', label=f'Sample mean = {sample_mean:.2f}')
-                        ax.set_title(f"Distribution of {selected_col}")
-                        ax.legend()
-                        st.pyplot(fig)
+                    st.subheader("Data Summary")
+                    st.write(f"**n:** {sample_size} | **x̄:** {sample_mean:.4f} | **s:** {sample_std:.4f}")
             except Exception as e:
-                st.error(f"Error: {str(e)}")
+                st.error(f"Error loading file: {e}")
     else:
-        sample_size = st.sidebar.number_input("Sample size (n)", value=1, min_value=1, step=1)
-        single_sample_selected = (sample_size == 1)
-        if single_sample_selected:
-            st.sidebar.warning("For single sample, population standard deviation (σ) must be known")
-        
+        sample_size = st.sidebar.number_input("Sample size (n)", min_value=1, value=30)
         sample_mean = st.sidebar.number_input("Sample mean (x̄)", value=0.0)
-        if not single_sample_selected:
-            sample_std = st.sidebar.number_input("Sample std dev (s)", value=1.0, min_value=0.01)
+        sample_std = st.sidebar.number_input("Sample std dev (s)", min_value=0.0, value=1.0)
     
-    # Population parameters
+    # --- 2. SIDEBAR: POPULATION PARAMETERS ---
     st.sidebar.header("2. Population Parameters")
-    pop_mean = st.sidebar.number_input("Population mean (μ₀)", value=0.0)
     
-    # Force σ known if single sample
-    if single_sample_selected:
-        sigma_known = True
-        pop_std = st.sidebar.number_input("Population std dev (σ) - REQUIRED", 
-                                         value=1.0, min_value=0.01)
-    else:
-        sigma_known = st.sidebar.checkbox("Population std dev (σ) is known")
-        pop_std = st.sidebar.number_input("Population std dev (σ)", 
-                                        value=1.0, min_value=0.01) if sigma_known else None
+    pop_mean_known = st.sidebar.checkbox("Population Mean (μ₀) is known", value=True)
+    pop_mean = st.sidebar.number_input("Enter μ₀", value=0.0) if pop_mean_known else 0.0
     
-    # Test configuration
+    sigma_known = st.sidebar.checkbox("Population std dev (σ) is known")
+    pop_std = st.sidebar.number_input("Enter σ", min_value=0.01, value=1.0) if sigma_known else None
+
+    # --- 3. SIDEBAR: TEST CONFIG ---
     st.sidebar.header("3. Test Configuration")
-    alpha = st.sidebar.number_input("Significance level (α)", value=0.05, 
-                                  min_value=0.001, max_value=0.5, step=0.01)
-    test_type = st.sidebar.radio("Test type", 
-                               ["Two-tailed (μ ≠ μ₀)", 
-                                "Left-tailed (μ < μ₀)", 
-                                "Right-tailed (μ > μ₀)"])    
+    alpha = st.sidebar.slider("Significance level (α)", 0.001, 0.20, 0.05, step=0.001)
+    test_type = st.sidebar.selectbox("Alternative Hypothesis", 
+                                   ["Two-tailed (μ ≠ μ₀)", "Left-tailed (μ < μ₀)", "Right-tailed (μ > μ₀)"])
     
+    # --- 4. CALCULATION LOGIC ---
     if sample_mean is not None and sample_size is not None:
         # Case 1: Z-test — σ known and sample size ≥ 30
         if sigma_known and pop_std and sample_size >= 30:
