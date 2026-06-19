@@ -7,3 +7,6 @@ venv/
 .DS_Store
 
 copy.py
+
+#old application- is faulty but some parts of codes are ok.
+hypothesistest.py
