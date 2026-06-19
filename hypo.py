@@ -39,10 +39,12 @@ def main():
         sample_std = st.sidebar.number_input("Sample std dev (s)", min_value=0.0, value=1.0)
 
     # --- 2. SIDEBAR: POPULATION PARAMETERS ---
+    # --- 2. SIDEBAR: POPULATION PARAMETERS ---
     st.sidebar.header("2. Population Parameters")
     
-    pop_mean_known = st.sidebar.checkbox("Population Mean (μ₀) is known", value=True)
-    pop_mean = st.sidebar.number_input("Enter μ₀", value=0.0) if pop_mean_known else 0.0
+    # FIX: Remove the "pop_mean_known" checkbox entirely. 
+    # A 1-sample mean test mathematically REQUIRES a target baseline to compare against.
+    pop_mean = st.sidebar.number_input("Hypothesized Population Mean (μ₀)", value=0.0)
     
     sigma_known = st.sidebar.checkbox("Population std dev (σ) is known")
     pop_std = st.sidebar.number_input("Enter σ", min_value=0.01, value=1.0) if sigma_known else None
