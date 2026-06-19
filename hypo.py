@@ -98,19 +98,31 @@ def main():
         reject = p_value < alpha
 
         # --- 5. RESULTS DISPLAY (KPIs) ---
-        st.header(f"Results: {test_name}")
-        kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
-        kpi1.metric("Test Statistic", f"{test_stat:.4f}")
-        kpi2.metric("P-Value", f"{p_value:.4f}")
-        kpi3.metric("Critical Value", display_crit)
+        # st.header(f"Results: {test_name}")
+        # kpi1, kpi2, kpi3, kpi4, kpi5 = st.columns(5)
+        # kpi1.metric("Test Statistic", f"{test_stat:.4f}")
+        # kpi2.metric("P-Value", f"{p_value:.4f}")
+        # kpi3.metric("Critical Value", display_crit)
         
-        # Display DF only if it's a T-test
-        if df_val is not None:
-            kpi4.metric("Deg. of Freedom (df)", df_val)
-        else:
-            kpi4.metric("Distribution", "Z (Normal)")
+        # # Display DF only if it's a T-test
+        # if df_val is not None:
+        #     kpi4.metric("Deg. of Freedom (df)", df_val)
+        # else:
+        #     kpi4.metric("Distribution", "Z (Normal)")
             
-        kpi5.metric("Decision", "Reject H₀" if reject else "Fail to Reject")
+        # kpi5.metric("Decision", "Reject H₀" if reject else "Fail to Reject")
+
+        st.header("Test Results")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Test statistic", f"{test_stat:.4f}")
+            st.metric("Standard Error", f"{std_err:.4f}")
+            test_label = "Z-test" if sigma_known and sample_size >= 30 else f"t-test (df={df_val})"
+            st.metric("Test type", test_label)
+        with col2:
+            st.metric("p-value", f"{p_value:.4f}")
+            st.metric("α level", f"{alpha:.3f}")
+            st.metric("Conclusion", "Reject H₀" if reject else "Fail to reject H₀")
 
         # --- 6. VISUALIZATION ---
         st.header("Visualizing the Rejection Region")
@@ -140,10 +152,23 @@ def main():
         st.pyplot(fig)
 
         # Conclusion Box
+        # if reject:
+        #     st.success(f"**Significant Evidence:** We reject H₀ at α={alpha}. The sample mean is significantly different from {pop_mean}.")
+        # else:
+        #     st.info(f"**Inconclusive:** We fail to reject H₀ at α={alpha}. There is not enough evidence to say the mean differs from {pop_mean}.")
+        st.header("Conclusion")
         if reject:
-            st.success(f"**Significant Evidence:** We reject H₀ at α={alpha}. The sample mean is significantly different from {pop_mean}.")
+            st.success(f"""
+            **Statistically Significant Result**  
+            🎯 We reject the null hypothesis (p = {p_value:.4f} < α = {alpha:.3f})  
+            ✅ There is significant evidence that μ {'≠' if test_type == 'Two-tailed (μ ≠ μ₀)' else '<' if test_type == 'Left-tailed (μ < μ₀)' else '>'} {pop_mean:.2f}
+            """)
         else:
-            st.info(f"**Inconclusive:** We fail to reject H₀ at α={alpha}. There is not enough evidence to say the mean differs from {pop_mean}.")
+            st.info(f"""
+            **No Significant Evidence Found**  
+            🎯 We fail to reject the null hypothesis (p = {p_value:.4f} ≥ α = {alpha:.3f})  
+            🔍 The data does not provide sufficient evidence to conclude μ {'≠' if test_type == 'Two-tailed (μ ≠ μ₀)' else '<' if test_type == 'Left-tailed (μ < μ₀)' else '>'} {pop_mean:.2f}
+            """)
 
 if __name__ == "__main__":
     main()
